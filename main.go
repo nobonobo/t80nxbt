@@ -19,6 +19,8 @@ var (
 	deadzoneMinus = float32(0.0)
 )
 
+// normalize returns a value in the range [-1, 1].
+// auto deadzone canceler
 func normalize(v float32) float32 {
 	if v == 0.0 {
 		return 0.0
@@ -51,9 +53,9 @@ func normalize(v float32) float32 {
 }
 
 func bind(input *procon.Input, state joystick.State) {
-	input.LStick.XValue = int(normalize(float32(state.AxisData[0])/32767) * 100)
-	input.RStick.XValue = state.AxisData[3]*50/32767 + 50 // Accel
-	input.RStick.YValue = state.AxisData[4]*50/32767 + 50 // Brake
+	input.LStick.XValue = int(normalize(float32(state.AxisData[0])/32767) * 100) // Wheel
+	input.RStick.XValue = state.AxisData[3]*50/32767 + 50                        // Brake
+	input.RStick.YValue = state.AxisData[4]*50/32767 + 50                        // Accel
 	ps := state.Buttons&(1<<12) != 0
 	input.Y = state.Buttons&(1<<0) != 0
 	input.B = state.Buttons&(1<<1) != 0
