@@ -80,14 +80,13 @@ func (c *Client) Start(ctx context.Context, script string) error {
 	return c.cmd.Start()
 }
 
-func (c *Client) Stop() {
+func (c *Client) Stop() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.cmd != nil {
-		if c.cmd.Process != nil {
-			c.cmd.Process.Kill()
-		}
+	if c.cmd == nil || c.cmd.Process == nil {
+		return nil
 	}
+	return c.Call("close", nil, nil)
 }
 
 func (c *Client) Connect() error {
