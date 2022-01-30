@@ -63,10 +63,10 @@ func bind(input *procon.Input, state joystick.State) {
 	input.X = state.Buttons&(1<<3) != 0
 	input.L = state.Buttons&(1<<4) != 0
 	input.R = state.Buttons&(1<<5) != 0
-	input.Minus = state.Buttons&(1<<8) != 0
-	input.Plus = state.Buttons&(1<<9) != 0
-	input.Zl = state.Buttons&(1<<10) != 0
-	input.Zr = state.Buttons&(1<<11) != 0
+	input.Minus = !ps && state.Buttons&(1<<8) != 0
+	input.Plus = !ps && state.Buttons&(1<<9) != 0
+	input.Zl = !ps && state.Buttons&(1<<10) != 0
+	input.Zr = !ps && state.Buttons&(1<<11) != 0
 	input.DpadLeft = float32(state.AxisData[6])/32767 < 0
 	input.DpadRight = float32(state.AxisData[6])/32767 > 0
 	input.DpadUp = float32(state.AxisData[7])/32767 < 0
