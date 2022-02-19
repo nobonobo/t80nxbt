@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,13 +16,19 @@ import (
 )
 
 var (
-	deadzonePlus  = float32(0.0)
-	deadzoneMinus = float32(0.0)
+	deadzonePlus  = 0.0
+	deadzoneMinus = 0.0
 )
+
+var length = math.Asin(1.0)
+
+func gamma(v float64) float64 {
+	return math.Asin(v) / length
+}
 
 // normalize returns a value in the range [-1, 1].
 // auto deadzone canceler
-func normalize(v float32) float32 {
+func normalize(v float64) float64 {
 	if v == 0.0 {
 		return 0.0
 	}
@@ -53,9 +60,10 @@ func normalize(v float32) float32 {
 }
 
 func bind(input *procon.Input, state joystick.State) {
-	input.LStick.XValue = int(normalize(float32(state.AxisData[0])/32767) * 100) // Wheel
-	input.RStick.XValue = state.AxisData[3]*50/32767 + 50                        // Brake
-	input.RStick.YValue = state.AxisData[4]*50/32767 + 50                        // Accel
+	input.LStick.XValue = int(gamma(normalize(float64(state.AxisData[0])/32767)) * 100) // Wheel
+	input.RStick.XValue = state.AxisData[3]*50/32767 + 50                               // Brake
+	input.RStick.YValue = state.AxisData[4]*50/32767 + 50                               // Accel
+	fmt.Printf("%+4d %+4d %+4d\r", input.LStick.XValue, input.RStick.XValue, input.RStick.YValue)
 	ps := state.Buttons&(1<<12) != 0
 	input.Y = state.Buttons&(1<<0) != 0
 	input.B = state.Buttons&(1<<1) != 0
@@ -80,8 +88,8 @@ func bind(input *procon.Input, state joystick.State) {
 var client = procon.New()
 
 func connect(ctx context.Context, id int, script string) {
-	deadzoneMinus = float32(0.0)
-	deadzonePlus = float32(0.0)
+	deadzoneMinus = 0.0
+	deadzonePlus = 0.0
 	js, err := joystick.Open(id)
 	if err != nil {
 		log.Print(err)
