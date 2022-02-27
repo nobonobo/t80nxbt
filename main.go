@@ -23,6 +23,7 @@ var (
 var length = math.Asin(1.0)
 
 func gamma(v float64) float64 {
+	//return v
 	return math.Asin(v) / length
 }
 
@@ -60,11 +61,19 @@ func normalize(v float64) float64 {
 }
 
 func bind(input *procon.Input, state joystick.State) {
-	input.LStick.XValue = int(gamma(normalize(float64(state.AxisData[0])/32767)) * 100) // Wheel
-	input.RStick.XValue = state.AxisData[3]*50/32767 + 50                               // Brake
-	input.RStick.YValue = state.AxisData[4]*50/32767 + 50                               // Accel
-	fmt.Printf("%+4d %+4d %+4d\r", input.LStick.XValue, input.RStick.XValue, input.RStick.YValue)
 	ps := state.Buttons&(1<<12) != 0
+	input.LStick.XValue = int(gamma(normalize(float64(state.AxisData[0])/32767)) * 100) // Wheel
+	if !ps {
+		input.LStick.YValue = (state.AxisData[4]*50/32767 + 50 - // Accel
+			state.AxisData[3]*50/32767 - 50) // Brake
+		input.DpadLeft = float32(state.AxisData[6])/32767 < 0
+		input.DpadRight = float32(state.AxisData[6])/32767 > 0
+		input.DpadUp = float32(state.AxisData[7])/32767 < 0
+		input.DpadDown = float32(state.AxisData[7])/32767 > 0
+	} else {
+		input.RStick.XValue = int(float32(state.AxisData[6]) / 32767 * +100)
+		input.RStick.YValue = int(float32(state.AxisData[7]) / 32767 * -100)
+	}
 	input.Y = state.Buttons&(1<<0) != 0
 	input.B = state.Buttons&(1<<1) != 0
 	input.A = state.Buttons&(1<<2) != 0
@@ -75,10 +84,6 @@ func bind(input *procon.Input, state joystick.State) {
 	input.Plus = !ps && state.Buttons&(1<<9) != 0
 	input.Zl = !ps && state.Buttons&(1<<10) != 0
 	input.Zr = !ps && state.Buttons&(1<<11) != 0
-	input.DpadLeft = float32(state.AxisData[6])/32767 < 0
-	input.DpadRight = float32(state.AxisData[6])/32767 > 0
-	input.DpadUp = float32(state.AxisData[7])/32767 < 0
-	input.DpadDown = float32(state.AxisData[7])/32767 > 0
 	input.Capture = ps && state.Buttons&(1<<8) != 0
 	input.Home = ps && state.Buttons&(1<<9) != 0
 	input.LStick.Pressed = ps && state.Buttons&(1<<10) != 0
