@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -63,14 +64,16 @@ func normalize(v float64) float64 {
 func bind(input *procon.Input, state joystick.State) {
 	ps := state.Buttons&(1<<12) != 0
 	input.LStick.XValue = int(gamma(normalize(float64(state.AxisData[0])/32767)) * 100) // Wheel
+	input.LStick.YValue = state.AxisData[3]*50/32767 + 50                               // Brake
 	if !ps {
-		input.LStick.YValue = (state.AxisData[4]*50/32767 + 50 - // Accel
-			state.AxisData[3]*50/32767 - 50) // Brake
+		input.RStick.YValue = state.AxisData[4]*50/32767 + 50 // Accel
+		// HAT switch to DPad
 		input.DpadLeft = float32(state.AxisData[6])/32767 < 0
 		input.DpadRight = float32(state.AxisData[6])/32767 > 0
 		input.DpadUp = float32(state.AxisData[7])/32767 < 0
 		input.DpadDown = float32(state.AxisData[7])/32767 > 0
 	} else {
+		// HAT switch to RStick
 		input.RStick.XValue = int(float32(state.AxisData[6]) / 32767 * +100)
 		input.RStick.YValue = int(float32(state.AxisData[7]) / 32767 * -100)
 	}
@@ -118,23 +121,48 @@ func connect(ctx context.Context, id int, script string) {
 		<-ctx.Done()
 		js.Close()
 	}()
+	var mutex sync.RWMutex
 	input := procon.Input{}
-	defer log.Println("closing...")
-	tick := time.NewTicker(16666 * time.Microsecond)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
+	lastState := joystick.State{}
+	go func() {
+		for {
 			state, err := js.Read()
 			if err != nil {
 				log.Print(err)
 				return
 			}
-			bind(&input, state)
-			fmt.Printf("Handle: %+4d Accel: %+4d Brake: %+4d\r",
-				input.LStick.XValue, input.RStick.YValue, input.RStick.XValue)
-			if err := client.Input(input); err != nil {
+			mutex.Lock()
+			lastState = state
+			bind(&input, lastState)
+			mutex.Unlock()
+		}
+	}()
+	defer log.Println("closing...")
+	const dt = time.Millisecond
+	tick := time.NewTicker(time.Second / 60)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			pulse := int((time.Duration(time.Now().UnixNano()) % (100 * dt)) / dt)
+			mutex.RLock()
+			copyInput := input
+			ps := lastState.Buttons&(1<<12) != 0
+			brake := lastState.AxisData[3]*50/32767 + 50
+			accel := lastState.AxisData[4]*50/32767 + 50
+			mutex.RUnlock()
+			if !ps {
+				copyInput.Zl = copyInput.Zl || pulse < brake
+				copyInput.Zr = copyInput.Zr || pulse < accel
+			}
+			fmt.Printf("Handle: %+4d Accel: %+4d Brake: %+4d Zl: %5v Zr: %5v\r",
+				copyInput.LStick.XValue,
+				copyInput.RStick.YValue,
+				copyInput.LStick.YValue,
+				copyInput.Zl, copyInput.Zr,
+			)
+			if err := client.Input(copyInput); err != nil {
 				log.Print(err)
 				s, err := client.State()
 				if err != nil {
