@@ -103,6 +103,8 @@ func connect(ctx context.Context, id int, script string) {
 		log.Print(err)
 		return
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	fmt.Printf("Joystick Name: %s", js.Name())
 	fmt.Printf("   Axis Count: %d", js.AxisCount())
 	fmt.Printf(" Button Count: %d", js.ButtonCount())
@@ -118,8 +120,20 @@ func connect(ctx context.Context, id int, script string) {
 	}
 	defer client.Disconnect()
 	go func() {
-		<-ctx.Done()
-		js.Close()
+		defer js.Close()
+		tick := time.NewTicker(time.Second * 3)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				_, err := os.Stat("/dev/input/js0")
+				if err != nil {
+					cancel()
+					return
+				}
+			}
+		}
 	}()
 	var mutex sync.RWMutex
 	input := procon.Input{}
