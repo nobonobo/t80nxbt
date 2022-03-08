@@ -85,12 +85,12 @@ func bind(input *procon.Input, state joystick.State) {
 	input.R = state.Buttons&(1<<5) != 0
 	input.Minus = !ps && state.Buttons&(1<<8) != 0
 	input.Plus = !ps && state.Buttons&(1<<9) != 0
-	input.Zl = !ps && state.Buttons&(1<<10) != 0
-	input.Zr = !ps && state.Buttons&(1<<11) != 0
+	//input.Zl = !ps && state.Buttons&(1<<6) != 0
+	//input.Zr = !ps && state.Buttons&(1<<7) != 0
 	input.Capture = ps && state.Buttons&(1<<8) != 0
 	input.Home = ps && state.Buttons&(1<<9) != 0
-	input.LStick.Pressed = ps && state.Buttons&(1<<10) != 0
-	input.RStick.Pressed = ps && state.Buttons&(1<<11) != 0
+	input.LStick.Pressed = state.Buttons&(1<<10) != 0
+	input.RStick.Pressed = state.Buttons&(1<<11) != 0
 }
 
 var client = procon.New()
