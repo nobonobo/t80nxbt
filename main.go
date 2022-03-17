@@ -21,11 +21,12 @@ var (
 	deadzoneMinus = 0.0
 )
 
-var length = math.Asin(1.0)
-
 func gamma(v float64) float64 {
-	//return v
-	return math.Asin(v) / length
+	const g = 1.5
+	if v > 0 {
+		return math.Pow(v, g)
+	}
+	return -1 * math.Pow(-v, g)
 }
 
 // normalize returns a value in the range [-1, 1].
@@ -61,12 +62,16 @@ func normalize(v float64) float64 {
 	}
 }
 
+var VRallyMode = false
+
 func bind(input *procon.Input, state joystick.State) {
 	ps := state.Buttons&(1<<12) != 0
 	input.LStick.XValue = int(gamma(normalize(float64(state.AxisData[0])/32767)) * 100) // Wheel
 	input.LStick.YValue = state.AxisData[3]*50/32767 + 50                               // Brake
 	if !ps {
-		input.RStick.YValue = state.AxisData[4]*50/32767 + 50 // Accel
+		if !VRallyMode {
+			input.RStick.YValue = state.AxisData[4]*50/32767 + 50 // Accel
+		}
 		// HAT switch to DPad
 		input.DpadLeft = float32(state.AxisData[6])/32767 < 0
 		input.DpadRight = float32(state.AxisData[6])/32767 > 0
@@ -81,16 +86,24 @@ func bind(input *procon.Input, state joystick.State) {
 	input.B = state.Buttons&(1<<1) != 0
 	input.A = state.Buttons&(1<<2) != 0
 	input.X = state.Buttons&(1<<3) != 0
-	input.L = state.Buttons&(1<<4) != 0
-	input.R = state.Buttons&(1<<5) != 0
+	input.L = !ps && state.Buttons&(1<<4) != 0
+	input.R = !ps && state.Buttons&(1<<5) != 0
 	input.Minus = !ps && state.Buttons&(1<<8) != 0
 	input.Plus = !ps && state.Buttons&(1<<9) != 0
-	//input.Zl = !ps && state.Buttons&(1<<6) != 0
-	//input.Zr = !ps && state.Buttons&(1<<7) != 0
 	input.Capture = ps && state.Buttons&(1<<8) != 0
 	input.Home = ps && state.Buttons&(1<<9) != 0
 	input.LStick.Pressed = state.Buttons&(1<<10) != 0
 	input.RStick.Pressed = state.Buttons&(1<<11) != 0
+	if !VRallyMode {
+		input.Zl = !ps && state.Buttons&(1<<6) != 0
+		input.Zr = !ps && state.Buttons&(1<<7) != 0
+	}
+	switch {
+	case ps && state.Buttons&(1<<4) != 0:
+		VRallyMode = false
+	case ps && state.Buttons&(1<<5) != 0:
+		VRallyMode = true
+	}
 }
 
 var client = procon.New()
@@ -152,7 +165,7 @@ func connect(ctx context.Context, id int, script string) {
 		}
 	}()
 	defer log.Println("closing...")
-	const dt = time.Millisecond
+	const dt = time.Second / 60 / 20 // PWM 5 levels
 	tick := time.NewTicker(time.Second / 60)
 	for {
 		select {
