@@ -22,7 +22,7 @@ var (
 )
 
 func gamma(v float64) float64 {
-	const g = 1.5
+	const g = 2.0
 	if v > 0 {
 		return math.Pow(v, g)
 	}
