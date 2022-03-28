@@ -16,13 +16,17 @@ import (
 	"github.com/simulatedsimian/joystick"
 )
 
+const (
+	g float64 = 2.0
+)
+
 var (
-	deadzonePlus  = 0.0
-	deadzoneMinus = 0.0
+	minDZ         float64 = math.Pow(0.01, 1/g)
+	deadzonePlus  float64 = 0.0
+	deadzoneMinus float64 = 0.0
 )
 
 func gamma(v float64) float64 {
-	const g = 2.0
 	if v > 0 {
 		return math.Pow(v, g)
 	}
@@ -46,7 +50,7 @@ func normalize(v float64) float64 {
 		if v < deadzonePlus {
 			return 0.0
 		}
-		return (v - deadzonePlus) / (1 - deadzonePlus)
+		return (v-deadzonePlus)/(1-deadzonePlus) + minDZ
 	} else {
 		if deadzoneMinus == 0 {
 			deadzoneMinus = v
@@ -58,7 +62,7 @@ func normalize(v float64) float64 {
 		if v > deadzoneMinus {
 			return 0.0
 		}
-		return (v - deadzoneMinus) / (1 + deadzoneMinus)
+		return (v-deadzoneMinus)/(1+deadzoneMinus) - minDZ
 	}
 }
 
@@ -183,7 +187,8 @@ func connect(ctx context.Context, id int, script string) {
 				copyInput.Zl = copyInput.Zl || pulse < brake
 				copyInput.Zr = copyInput.Zr || pulse < accel
 			}
-			fmt.Printf("Handle: %+4d Accel: %+4d Brake: %+4d Zl: %5v Zr: %5v\r",
+			fmt.Printf("Handle: %+6d(%+4d) Accel: %+4d Brake: %+4d Zl: %5v Zr: %5v\r",
+				lastState.AxisData[0],
 				copyInput.LStick.XValue,
 				copyInput.RStick.YValue,
 				copyInput.LStick.YValue,
